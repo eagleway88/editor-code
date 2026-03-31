@@ -1,0 +1,74 @@
+{
+  "name": "@eagleway/editor-code",
+  "version": "0.0.1",
+  "description": "Cross-platform editor-code generator",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.mjs",
+      "require": "./dist/react-native.js"
+    },
+    "./react-native/html": {
+      "types": "./dist/react-native-html.d.ts",
+      "import": "./dist/react-native-html.mjs",
+      "require": "./dist/react-native-html.js"
+    },
+    "./static/*": "./dist/static/*"
+  },
+  "scripts": {
+    "build:web": "tsup",
+    "build:static": "webpack --mode production",
+    "build:html-export": "node scripts/generate-react-native-html.cjs",
+    "build": "npm run build:web && npm run build:static && npm run build:html-export",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0",
+    "react-native": ">=0.72.0",
+    "react-native-webview": ">=13.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "react-native-webview": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "css-loader": "^6.0.0",
+    "html-bundler-webpack-plugin": "^4.22.0",
+    "preact": "^10.28.2",
+    "react": "^19.2.3",
+    "ts-loader": "^9.5.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.55.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
