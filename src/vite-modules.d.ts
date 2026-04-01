@@ -1,4 +1,4 @@
-declare module 'monaco-editor/esm/vs/editor/editor.worker?worker' {
+declare module 'monaco-editor/esm/vs/editor/editor.worker.js?worker' {
   const WorkerFactory: {
     new (): Worker
   }
@@ -6,7 +6,7 @@ declare module 'monaco-editor/esm/vs/editor/editor.worker?worker' {
   export default WorkerFactory
 }
 
-declare module 'monaco-editor/esm/vs/language/json/json.worker?worker' {
+declare module 'monaco-editor/esm/vs/language/json/json.worker.js?worker' {
   const WorkerFactory: {
     new (): Worker
   }
@@ -14,7 +14,7 @@ declare module 'monaco-editor/esm/vs/language/json/json.worker?worker' {
   export default WorkerFactory
 }
 
-declare module 'monaco-editor/esm/vs/language/css/css.worker?worker' {
+declare module 'monaco-editor/esm/vs/language/css/css.worker.js?worker' {
   const WorkerFactory: {
     new (): Worker
   }
@@ -22,7 +22,7 @@ declare module 'monaco-editor/esm/vs/language/css/css.worker?worker' {
   export default WorkerFactory
 }
 
-declare module 'monaco-editor/esm/vs/language/html/html.worker?worker' {
+declare module 'monaco-editor/esm/vs/language/html/html.worker.js?worker' {
   const WorkerFactory: {
     new (): Worker
   }
@@ -30,7 +30,7 @@ declare module 'monaco-editor/esm/vs/language/html/html.worker?worker' {
   export default WorkerFactory
 }
 
-declare module 'monaco-editor/esm/vs/language/typescript/ts.worker?worker' {
+declare module 'monaco-editor/esm/vs/language/typescript/ts.worker.js?worker' {
   const WorkerFactory: {
     new (): Worker
   }
