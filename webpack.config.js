@@ -1,5 +1,6 @@
 // webpack.config.js
 const path = require('path')
+const webpack = require('webpack')
 const HtmlBundlerPlugin = require('html-bundler-webpack-plugin')
 
 module.exports = {
@@ -7,7 +8,13 @@ module.exports = {
     standalone: './templates/standalone.html'
   },
   output: {
-    path: path.join(__dirname, 'dist/static')
+    path: path.join(__dirname, 'dist/static'),
+    filename: '[name].js',
+    clean: true
+  },
+  optimization: {
+    runtimeChunk: false,
+    splitChunks: false
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
@@ -23,9 +30,17 @@ module.exports = {
       js: { inline: true }, // JS 注入 HTML
       css: { inline: true }, // CSS 注入 HTML
       minify: true // 极致压缩
+    }),
+    new webpack.optimize.LimitChunkCountPlugin({
+      maxChunks: 1
     })
   ],
   module: {
+    parser: {
+      javascript: {
+        dynamicImportMode: 'eager'
+      }
+    },
     rules: [
       {
         test: /\.tsx?$/,

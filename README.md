@@ -41,14 +41,22 @@ export function Demo() {
 }
 ```
 
+如果宿主是 Vite，需要先在应用入口引入一次 Vite 子入口，让 Monaco worker 映射提前注册：
+
+```tsx
+import '@eagleway/editor-code/vite'
+```
+
 ## React Native 用法
 
 推荐直接使用包内导出的 HTML source，而不是自己管理静态文件路径。
 
 ```tsx
 import { useRef } from 'react'
-import { EditorCodeNative } from '@eagleway/editor-code/react-native'
-import { createEditorCodeHtmlSource } from '@eagleway/editor-code/react-native/html'
+import {
+  EditorCodeNative,
+  createEditorCodeHtmlSource
+} from '@eagleway/editor-code/react-native'
 
 export function Demo() {
   const editorRef = useRef(null)
@@ -109,7 +117,8 @@ editorRef.current?.layout()
 - React 版本直接创建 Monaco editor
 - React Native 版本通过 react-native-webview 承载 standalone HTML
 - RN 与 WebView 之间通过 window.__EDITOR_CODE_BRIDGE__ 双向通信
-- standalone HTML 已在构建后导出为包内字符串，方便直接作为 WebView source 使用
+- React Native 子入口内置 createEditorCodeHtmlSource，直接返回 WebView 可用的 html source
+- Vite 宿主可通过 @eagleway/editor-code/vite 子入口自动注册 MonacoEnvironment.getWorker
 
 ## 构建
 
