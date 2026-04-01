@@ -47,6 +47,18 @@ export function Demo() {
 import '@eagleway/editor-code/vite'
 ```
 
+同时需要在 Vite 配置里排除依赖预构建，否则 dev 模式下 esbuild 会直接解析 `?worker` 导入并报错：
+
+```ts
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  optimizeDeps: {
+    exclude: ['@eagleway/editor-code', '@eagleway/editor-code/vite']
+  }
+})
+```
+
 ## React Native 用法
 
 推荐直接使用包内导出的 HTML source，而不是自己管理静态文件路径。
@@ -129,5 +141,5 @@ npm run build
 该命令会执行：
 
 - tsup：生成 React 和 React Native 入口
-- webpack：生成 standalone HTML
-- node 脚本：把 standalone HTML 转成 @eagleway/editor-code/react-native/html 子入口
+- webpack：生成 React Native 使用的中间 standalone HTML
+- node 脚本：把 standalone HTML 内联进最终的 @eagleway/editor-code/react-native 子入口
