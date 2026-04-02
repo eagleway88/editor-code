@@ -1,6 +1,6 @@
 {
   "name": "@eagleway/editor-code",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Cross-platform editor-code generator",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -32,6 +32,7 @@
     "build:static": "webpack --mode production",
     "build:react-native-entry": "node scripts/build-react-native-entry.cjs",
     "build": "npm run build:web && npm run build:static && npm run build:react-native-entry",
+    "prepack": "npm run build",
     "dev": "tsup --watch"
   },
   "peerDependencies": {
