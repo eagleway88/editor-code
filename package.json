@@ -1,6 +1,6 @@
 {
   "name": "@eagleway/editor-code",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Cross-platform editor-code generator",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

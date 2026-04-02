@@ -11,6 +11,7 @@ import {
 
 type WebViewRef = {
   injectJavaScript: (script: string) => void
+  requestFocus?: () => void
 }
 
 type NativeMessageEvent = {
@@ -76,6 +77,9 @@ export const EditorCodeNative = forwardRef<
     | undefined
   const webViewOnLoadEnd = webViewProps?.onLoadEnd as
     | (() => void)
+    | undefined
+  const webViewOnTouchStart = webViewProps?.onTouchStart as
+    | ((event: unknown) => void)
     | undefined
   const webViewInjectedJavaScript = webViewProps?.injectedJavaScript as
     | string
@@ -166,6 +170,25 @@ export const EditorCodeNative = forwardRef<
     webViewRef.current?.injectJavaScript(script)
   }
 
+  function focusWebView(reason: string) {
+    webViewRef.current?.requestFocus?.()
+    sendMessage(`
+      (function() {
+        var root = document.getElementById('root');
+        var candidate = root && root.querySelector(
+          'textarea.inputarea, textarea, [contenteditable="true"]'
+        );
+        if (candidate && typeof candidate.focus === 'function') {
+          candidate.focus();
+        }
+        if (window.__EDITOR_CODE_BRIDGE__ && typeof window.__EDITOR_CODE_BRIDGE__.receive === 'function') {
+          window.__EDITOR_CODE_BRIDGE__.receive(JSON.stringify({ type: 'focus' }));
+        }
+        true;
+      })();
+    `)
+  }
+
   function sendBridgeMessage(message: Parameters<typeof createBridgeScript>[0]) {
     sendMessage(createBridgeScript(message))
   }
@@ -193,6 +216,7 @@ export const EditorCodeNative = forwardRef<
 
   const editorRefApi: EditorCodeNativeRef = {
     focus() {
+      focusWebView('imperative')
       sendBridgeMessage({ type: 'focus' })
     },
     layout() {
@@ -331,6 +355,10 @@ export const EditorCodeNative = forwardRef<
         onLoadEnd={() => {
           webViewOnLoadEnd?.()
           bootstrapRender(editorProps)
+        }}
+        onTouchStart={(event: unknown) => {
+          focusWebView('touchstart')
+          webViewOnTouchStart?.(event)
         }}
         onMessage={handleMessage as never}
         style={webViewStyle as never}

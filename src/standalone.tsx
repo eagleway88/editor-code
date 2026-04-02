@@ -26,6 +26,7 @@ const editorRef = createRef<EditorCodeHandle>()
 let currentProps: EditorCodeProps = {}
 let lastKnownSelection: monaco.Selection | null = null
 let relayoutTimer: ReturnType<typeof setTimeout> | null = null
+let focusTimer: ReturnType<typeof setTimeout> | null = null
 let disposeMountEffects: (() => void) | null = null
 
 ;(standaloneWindow as typeof standaloneWindow & {
@@ -56,6 +57,66 @@ function clearRelayoutTimer() {
     clearTimeout(relayoutTimer)
     relayoutTimer = null
   }
+}
+
+function clearFocusTimer() {
+  if (focusTimer) {
+    clearTimeout(focusTimer)
+    focusTimer = null
+  }
+}
+
+function focusEditableInput(root: HTMLElement) {
+  const candidate = root.querySelector(
+    'textarea.inputarea, textarea, [contenteditable="true"]'
+  ) as HTMLTextAreaElement | HTMLElement | null
+
+  if (!candidate) {
+    return false
+  }
+
+  if ('removeAttribute' in candidate) {
+    candidate.removeAttribute('readonly')
+    candidate.removeAttribute('disabled')
+  }
+
+  if ('focus' in candidate) {
+    candidate.focus()
+    return document.activeElement === candidate
+  }
+
+  return false
+}
+
+function focusEditor(reason: string, delay = 0) {
+  clearFocusTimer()
+
+  focusTimer = setTimeout(() => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    try {
+      editor.layout?.()
+
+      if (lastKnownSelection) {
+        editor.setSelection?.(lastKnownSelection)
+        editor.setPosition?.(lastKnownSelection.getPosition())
+      }
+
+      editor.focus?.()
+    } catch (error) {
+      postToNative({
+        type: 'error',
+        message:
+          '[standalone-runtime] focus failed (' +
+          reason +
+          '): ' +
+          (error instanceof Error ? error.message : String(error))
+      })
+    }
+  }, delay)
 }
 
 function relayoutAndRestoreSelection(reason: string) {
@@ -102,6 +163,7 @@ function bindViewportListeners(editor: EditorCodeHandle) {
 
   return () => {
     clearRelayoutTimer()
+    clearFocusTimer()
     standaloneWindow.visualViewport?.removeEventListener(
       'resize',
       handleViewportChange
@@ -111,6 +173,42 @@ function bindViewportListeners(editor: EditorCodeHandle) {
       handleViewportChange
     )
     standaloneWindow.removeEventListener('resize', handleWindowResize)
+  }
+}
+
+function bindInteractionListeners(root: HTMLElement) {
+  const handleUserPressStart = () => {
+    focusEditableInput(root)
+    focusEditor('interaction-start')
+  }
+
+  const handleUserInteraction = () => {
+    focusEditableInput(root)
+    focusEditor('interaction')
+  }
+
+  const handleUserInteractionDelayed = () => {
+    focusEditableInput(root)
+    focusEditor('interaction-delayed', 30)
+  }
+
+  root.addEventListener('touchstart', handleUserPressStart, true)
+  root.addEventListener('pointerdown', handleUserPressStart, true)
+  root.addEventListener('mousedown', handleUserPressStart, true)
+  root.addEventListener('touchend', handleUserInteraction, { passive: true })
+  root.addEventListener('pointerup', handleUserInteraction)
+  root.addEventListener('mouseup', handleUserInteraction)
+  root.addEventListener('click', handleUserInteractionDelayed)
+
+  return () => {
+    clearFocusTimer()
+    root.removeEventListener('touchstart', handleUserPressStart, true)
+    root.removeEventListener('pointerdown', handleUserPressStart, true)
+    root.removeEventListener('mousedown', handleUserPressStart, true)
+    root.removeEventListener('touchend', handleUserInteraction)
+    root.removeEventListener('pointerup', handleUserInteraction)
+    root.removeEventListener('mouseup', handleUserInteraction)
+    root.removeEventListener('click', handleUserInteractionDelayed)
   }
 }
 
@@ -144,11 +242,14 @@ function mountEditor(props: EditorCodeProps) {
         })
 
         const unbindViewportListeners = bindViewportListeners(editor)
+        const unbindInteractionListeners = bindInteractionListeners(root)
         disposeMountEffects = () => {
           selectionDisposable?.dispose?.()
           unbindViewportListeners()
+          unbindInteractionListeners()
         }
 
+        focusEditor('mount', 30)
         props.onMount?.(editor)
         postToNative({ type: 'ready' })
       }}
