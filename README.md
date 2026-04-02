@@ -61,7 +61,7 @@ export default defineConfig({
 
 ## React Native 用法
 
-推荐直接使用包内导出的 HTML source，而不是自己管理静态文件路径。
+默认仍可直接使用包内导出的 HTML source。若宿主需要避免把大体积 HTML 字符串通过 RN bridge 传给 WebView，也可以直接使用包内发布的 standalone.html 静态资源。
 
 ```tsx
 import { useRef } from 'react'
@@ -124,12 +124,48 @@ editorRef.current?.layout()
 />
 ```
 
+## React Native 静态资源模式
+
+从 `0.0.4` 起，React Native 子路径额外发布了 `standalone.html`，适合直接走本地 file URI：
+
+```tsx
+import { Image, Platform } from 'react-native'
+import { EditorCodeNative } from '@eagleway/editor-code/react-native'
+
+const standaloneHtmlAsset = require(
+  '@eagleway/editor-code/react-native/standalone.html'
+)
+
+const iosUri = Image.resolveAssetSource(standaloneHtmlAsset)?.uri ?? ''
+const iosReadAccessUri = iosUri.replace(/[^/]+$/, '')
+
+const androidUri =
+  'file:///android_res/raw/node_modules_eagleway_editorcode_dist_static_standalone.html'
+
+<EditorCodeNative
+  source={{ uri: Platform.OS === 'android' ? androidUri : iosUri }}
+  webViewProps={{
+    allowFileAccess: true,
+    allowingReadAccessToURL:
+      Platform.OS === 'android' ? 'file:///android_res/raw/' : iosReadAccessUri,
+    allowUniversalAccessFromFileURLs: Platform.OS === 'android'
+  }}
+/>
+```
+
+说明：
+
+- iOS 可以直接通过 `require('@eagleway/editor-code/react-native/standalone.html')` 获取 bundle 内静态文件 URI
+- Android 可直接使用 React Native raw 资源命名规则推导出的固定文件名
+- 这种模式更适合大体积 standalone HTML，能避免 `source={{ html }}` 的桥接开销
+
 ## 设计说明
 
 - React 版本直接创建 Monaco editor
 - React Native 版本通过 react-native-webview 承载 standalone HTML
 - RN 与 WebView 之间通过 window.__EDITOR_CODE_BRIDGE__ 双向通信
 - React Native 子入口内置 createEditorCodeHtmlSource，直接返回 WebView 可用的 html source
+- React Native 也支持通过 `@eagleway/editor-code/react-native/standalone.html` 以本地资源模式加载 standalone HTML
 - Vite 宿主可通过 @eagleway/editor-code/vite 子入口自动注册 MonacoEnvironment.getWorker
 
 ## 构建

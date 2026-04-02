@@ -63,9 +63,104 @@ export const EditorCodeNative = forwardRef<
   const webViewRef = useRef<WebViewRef | null>(null)
   const [bridgeReady, setBridgeReady] = useState(false)
   const requestIdRef = useRef(0)
+  const bootstrapAttemptRef = useRef(0)
+  const bootstrapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastRenderedEditorPropsRef = useRef<string>('')
+  const latestEditorValueRef = useRef(value)
   const pendingValueRequestsRef = useRef(
     new Map<string, (value: string) => void>()
   )
+
+  const webViewOnLoadStart = webViewProps?.onLoadStart as
+    | (() => void)
+    | undefined
+  const webViewOnLoadEnd = webViewProps?.onLoadEnd as
+    | (() => void)
+    | undefined
+  const webViewInjectedJavaScript = webViewProps?.injectedJavaScript as
+    | string
+    | undefined
+
+  function createInitialBootstrapScript(nextProps?: EditorRenderPayload) {
+    const payload = JSON.stringify(nextProps ?? editorProps ?? {})
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')
+
+    return `
+      (function() {
+        var props = JSON.parse('${payload}');
+        var attempts = 0;
+        var maxAttempts = 40;
+        var postError = function(message) {
+          if (!window.ReactNativeWebView || !window.ReactNativeWebView.postMessage) {
+            return;
+          }
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'error',
+            message: '[bootstrap-injected] ' + message
+          }));
+        };
+        var run = function() {
+          attempts += 1;
+          try {
+            if (typeof window.renderEditorCode === 'function') {
+              window.renderEditorCode(props);
+              return;
+            }
+            if (
+              window.__EDITOR_CODE_BRIDGE__ &&
+              typeof window.__EDITOR_CODE_BRIDGE__.receive === 'function'
+            ) {
+              window.__EDITOR_CODE_BRIDGE__.receive(JSON.stringify({
+                type: 'render',
+                props: props
+              }));
+              return;
+            }
+          } catch (error) {
+            postError(error && error.message ? error.message : String(error));
+            return;
+          }
+          if (attempts < maxAttempts) {
+            setTimeout(run, 250);
+            return;
+          }
+          postError(
+            'render bridge not ready' +
+              ' templateReady=' +
+              String(!!window.__EDITOR_CODE_TEMPLATE_READY__) +
+              ' runtimeReady=' +
+              String(!!window.__EDITOR_CODE_RUNTIME_READY__) +
+              ' hasRenderEditorCode=' +
+              String(typeof window.renderEditorCode === 'function') +
+              ' hasBridge=' +
+              String(
+                !!window.__EDITOR_CODE_BRIDGE__ &&
+                  typeof window.__EDITOR_CODE_BRIDGE__.receive === 'function'
+              )
+          );
+        };
+        run();
+      })();
+      true;
+    `
+  }
+
+  const mergedInjectedJavaScript = [
+    webViewInjectedJavaScript,
+    createInitialBootstrapScript(editorProps)
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  function clearBootstrapTimer() {
+    if (bootstrapTimerRef.current) {
+      clearTimeout(bootstrapTimerRef.current)
+      bootstrapTimerRef.current = null
+    }
+  }
 
   function sendMessage(script: string) {
     webViewRef.current?.injectJavaScript(script)
@@ -80,6 +175,20 @@ export const EditorCodeNative = forwardRef<
       type: 'render',
       props: nextProps ?? editorProps ?? {}
     })
+  }
+
+  function bootstrapRender(nextProps?: EditorRenderPayload) {
+    clearBootstrapTimer()
+    bootstrapAttemptRef.current += 1
+    renderEditor(nextProps)
+
+    if (bridgeReady || bootstrapAttemptRef.current >= 40) {
+      return
+    }
+
+    bootstrapTimerRef.current = setTimeout(() => {
+      bootstrapRender(nextProps)
+    }, 250)
   }
 
   const editorRefApi: EditorCodeNativeRef = {
@@ -115,10 +224,22 @@ export const EditorCodeNative = forwardRef<
   useImperativeHandle(ref, () => editorRefApi)
 
   useEffect(() => {
+    return () => {
+      clearBootstrapTimer()
+    }
+  }, [])
+
+  useEffect(() => {
     if (!bridgeReady) {
       return
     }
 
+    const serializedEditorProps = JSON.stringify(editorProps ?? {})
+    if (lastRenderedEditorPropsRef.current === serializedEditorProps) {
+      return
+    }
+
+    lastRenderedEditorPropsRef.current = serializedEditorProps
     renderEditor(editorProps)
   }, [bridgeReady, editorProps])
 
@@ -127,6 +248,11 @@ export const EditorCodeNative = forwardRef<
       return
     }
 
+    if (latestEditorValueRef.current === value) {
+      return
+    }
+
+    latestEditorValueRef.current = value
     editorRefApi.setValue(value)
   }, [bridgeReady, value])
 
@@ -156,13 +282,18 @@ export const EditorCodeNative = forwardRef<
     }
 
     if (message.type === 'ready') {
+      clearBootstrapTimer()
+      bootstrapAttemptRef.current = 0
       setBridgeReady(true)
+      lastRenderedEditorPropsRef.current = ''
+      latestEditorValueRef.current = value
       onReady?.(editorRefApi)
       renderEditor(editorProps)
       return
     }
 
     if (message.type === 'change') {
+      latestEditorValueRef.current = message.value
       onChange?.(message.value)
       return
     }
@@ -191,7 +322,16 @@ export const EditorCodeNative = forwardRef<
         source={source as never}
         originWhitelist={['*']}
         javaScriptEnabled
-        onLoadEnd={() => renderEditor(editorProps)}
+        injectedJavaScript={mergedInjectedJavaScript}
+        onLoadStart={() => {
+          bootstrapAttemptRef.current = 0
+          clearBootstrapTimer()
+          webViewOnLoadStart?.()
+        }}
+        onLoadEnd={() => {
+          webViewOnLoadEnd?.()
+          bootstrapRender(editorProps)
+        }}
         onMessage={handleMessage as never}
         style={webViewStyle as never}
       />

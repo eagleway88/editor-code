@@ -3,6 +3,7 @@ const path = require('path')
 
 const workspaceRoot = path.resolve(__dirname, '..')
 const distPath = path.join(workspaceRoot, 'dist')
+const staticPath = path.join(distPath, 'static')
 const htmlPath = path.join(distPath, 'static', 'standalone.html')
 const wrapperPaths = [
   path.join(distPath, 'react-native-entry.js'),
@@ -19,7 +20,42 @@ if (!fs.existsSync(htmlPath)) {
   throw new Error(`Missing standalone HTML build artifact: ${htmlPath}`)
 }
 
-const html = fs.readFileSync(htmlPath, 'utf8')
+const assetMimeTypes = {
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml'
+}
+
+let html = fs.readFileSync(htmlPath, 'utf8')
+if (fs.existsSync(staticPath)) {
+  const staticFiles = fs
+    .readdirSync(staticPath)
+    .filter((fileName) => fileName !== 'standalone.html')
+
+  for (const fileName of staticFiles) {
+    const extname = path.extname(fileName).toLowerCase()
+    const mimeType = assetMimeTypes[extname]
+    const assetPath = path.join(staticPath, fileName)
+
+    if (!mimeType || !fs.existsSync(assetPath)) {
+      continue
+    }
+
+    const assetBase64 = fs.readFileSync(assetPath).toString('base64')
+    const dataUri = `data:${mimeType};base64,${assetBase64}`
+    html = html.split(fileName).join(dataUri)
+    fs.rmSync(assetPath, { force: true })
+  }
+
+  fs.writeFileSync(htmlPath, html)
+}
+
 const serializedHtml = JSON.stringify(html)
 
 const cjsSource = `const reactNative = require('./react-native.js');\n\nconst editorCodeHtml = ${serializedHtml};\n\nfunction createEditorCodeHtmlSource() {\n  return { html: editorCodeHtml };\n}\n\nexports.EditorCodeNative = reactNative.EditorCodeNative;\nexports.editorCodeHtml = editorCodeHtml;\nexports.createEditorCodeHtmlSource = createEditorCodeHtmlSource;\n`
@@ -32,18 +68,9 @@ fs.writeFileSync(path.join(distPath, 'react-native-entry.js'), cjsSource)
 fs.writeFileSync(path.join(distPath, 'react-native-entry.mjs'), esmSource)
 fs.writeFileSync(path.join(distPath, 'react-native-entry.d.ts'), typesSource)
 
-for (const fileName of [
-  'react-native-html.js',
-  'react-native-html.mjs',
-  'react-native-html.d.ts'
-]) {
+for (const fileName of ['react-native-html.js', 'react-native-html.mjs', 'react-native-html.d.ts']) {
   const filePath = path.join(distPath, fileName)
   if (fs.existsSync(filePath)) {
     fs.rmSync(filePath, { force: true })
   }
-}
-
-const staticPath = path.join(distPath, 'static')
-if (fs.existsSync(staticPath)) {
-  fs.rmSync(staticPath, { recursive: true, force: true })
 }

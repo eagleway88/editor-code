@@ -10,6 +10,7 @@ module.exports = {
   output: {
     path: path.join(__dirname, 'dist/static'),
     filename: '[name].js',
+    publicPath: '',
     clean: true
   },
   optimization: {
@@ -53,7 +54,7 @@ module.exports = {
       },
       // 图片/字体资源处理
       {
-        test: /\.(png|svg|jpg|jpeg|gif|ico)$/i,
+        test: /\.(png|svg|jpg|jpeg|gif|ico|ttf|otf)$/i,
         // 关键点 3: 强制资源转换为 Base64 内联
         type: 'asset/inline'
       }

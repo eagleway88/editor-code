@@ -1,6 +1,6 @@
 {
   "name": "@eagleway/editor-code",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Cross-platform editor-code generator",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -25,7 +25,8 @@
       "types": "./dist/react-native-entry.d.ts",
       "import": "./dist/react-native-entry.mjs",
       "require": "./dist/react-native-entry.js"
-    }
+    },
+    "./react-native/standalone.html": "./dist/static/standalone.html"
   },
   "scripts": {
     "build:web": "tsup",
